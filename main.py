@@ -84,7 +84,7 @@ async def cmd_chart(message):
         datetime = Datetime(date.strftime('%Y/%m/%d'), time.strftime('%H:%M'), offset)
         pos = GeoPos(location.latitude, location.longitude)
         chart = Chart(datetime, pos)
-        response = ["Your chart is:"]
+        response = ["%s, your chart is:" % (message.author.mention)]
         for const in consts:
             try:
                 response += ['   %s: %s' % (const, str(chart.getObject(const).sign))]
