@@ -12,22 +12,32 @@ from tzwhere import tzwhere
 import requests
 import us
 import re
+import logging
 
 from dateutil.parser import parse
 
 client = discord.Client()
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.FileHandler('zodiac.log')
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+
 @client.event
 async def on_ready():
-    print('Logged in as')
-    print(client.user.name)
-    print(client.user.id)
-    print('------')
+    logger.info('Logged in as')
+    logger.info(client.user.name)
+    logger.info(client.user.id)
+    logger.info('------')
 
 @client.event
 async def on_message(message):
     l = message.content.split(' ')
-    print(l)
+    logger.info(message.content)
     if l[0] == '!help':
         await cmd_help(message)
     if l[0] == '!sun':
@@ -50,10 +60,10 @@ async def cmd_sun(message):
         pos = GeoPos('00n00', '0w00')
         chart = Chart(datetime, pos)
         sun = str(chart.getObject(SUN)).split(' ')[1]
-        await client.send_message(message.channel, "If you were born on %s, then you're a %s!" % (date.strftime('%B %d, %Y'), sun))
+        await send_text(client, message.channel, "If you were born on %s, then you're a %s!" % (date.strftime('%B %d, %Y'), sun))
     except Exception as e:
-        print(e)
-        await client.send_message(message.channel, "Invalid date string")
+        logger.info(e)
+        await send_text(client, message.channel, "Invalid date string")
 
 
 consts = [flatlib.const.SUN,
@@ -106,15 +116,22 @@ async def cmd_chart(message):
             response += [url]
             response += [img]
         except Exception as e:
-            raise e
-        await client.send_message(message.channel, '\n'.join(response))
+            logger.critical(e)
+            response += ["Couldn't generate your image :/"]
+        logger.info("Sending message: %s" % '\n'.join(response))
+        await send_text(client, message.channel, '\n'.join(response))
     except Exception as e:
         raise e
-        await client.send_message(message.channel, "Usage: !chart dd/mm/yy hh/mm location")
+        await send_text(client, message.channel, "Usage: !chart dd/mm/yy hh/mm location")
+
+async def send_text(client, channel, text):
+    logger.info('Sending message: %s' % text)
+    await client.send_message(channel, text)
 
 
 def get_chart_image(date, time, location, message):
     country = location.raw['address']['country']
+    town = location.raw['address']['city'] if 'city' in location.raw['address'].keys() else location.raw['address']['town']
     if len(country.split(' ')) > 1:
         country = ''.join([x[0] for x in country.split(' ') if x[0].isupper()])
     params = {'INPUT1': message.author.nick,
@@ -126,7 +143,7 @@ def get_chart_image(date, time, location, message):
               'YEAR': date.year,
               'MINUTE': time.minute,
               'AMPM': 'AM' if time.hour < 12 else 'PM',
-              'TOWN': location.raw['address']['city'],
+              'TOWN': town,
               'COUNTRY': country,
               'INPUT9': 'Submit',
               'Submit': 'Submit'
@@ -138,7 +155,7 @@ def get_chart_image(date, time, location, message):
     return (r.url, 'https://www.alabe.com/cgi-bin/chart/%s' % img)
 
 async def cmd_help(message):
-    await client.send_message(message.channel,
+    await send_text(client, message.channel,
 '''
 Current commands:
     !sun [mm/dd/yy]
