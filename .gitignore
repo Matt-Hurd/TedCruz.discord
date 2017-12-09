@@ -1,0 +1,6 @@
+secrets.py
+Pipfile.lock
+__pycache__
+discord
+.DS_STORE
+.pyc
