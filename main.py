@@ -34,7 +34,7 @@ async def on_ready():
     logger.info(client.user.name)
     logger.info(client.user.id)
     logger.info('------')
-    client.change_presence((game=discord.Game(name="The TRUE Zodiac"), status=None, afk=False)
+    client.change_presence(game=discord.Game(name="The TRUE Zodiac"), status=None, afk=False)
 
 @client.event
 async def on_message(message):
