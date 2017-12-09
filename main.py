@@ -5,7 +5,7 @@ import secrets
 from flatlib.datetime import Datetime
 from flatlib.geopos import GeoPos
 from flatlib.chart import Chart
-import flatlib.const
+from flatlib.const import LIST_OBJECTS
 from geopy.geocoders import Nominatim
 import pytz
 from tzwhere import tzwhere
@@ -13,6 +13,7 @@ import requests
 import us
 import re
 import logging
+import rollbar
 
 from dateutil.parser import parse
 
@@ -33,6 +34,7 @@ async def on_ready():
     logger.info(client.user.name)
     logger.info(client.user.id)
     logger.info('------')
+    client.change_status(game="The TRUE Zodiac", idle=False)
 
 @client.event
 async def on_message(message):
@@ -64,23 +66,6 @@ async def cmd_sun(message):
     except Exception as e:
         logger.info(e)
         await send_text(client, message.channel, "Invalid date string")
-
-
-consts = [flatlib.const.SUN,
-          flatlib.const.MOON,
-          flatlib.const.MERCURY,
-          flatlib.const.VENUS,
-          flatlib.const.MARS,
-          flatlib.const.JUPITER,
-          flatlib.const.SATURN,
-          flatlib.const.URANUS,
-          flatlib.const.NEPTUNE,
-          flatlib.const.PLUTO,
-          flatlib.const.CHIRON,
-          flatlib.const.NORTH_NODE,
-          flatlib.const.SOUTH_NODE,
-          flatlib.const.SYZYGY,
-          flatlib.const.PARS_FORTUNA]
           
 TZWHERE_INST = tzwhere.tzwhere()
 GEOLOCATOR = Nominatim()
@@ -88,41 +73,34 @@ GEOLOCATOR = Nominatim()
 async def cmd_chart(message):
     global TZWHERE_INST, GEOLOCATOR
     l = message.content.split(' ')
+    date = parse(l[1])
+    time = parse(l[2])
+    pos = 3
+    if l[3].lower() == 'am':
+        pos += 1
+    if l[3].lower() == 'pm':
+        pos += 1
+        time.replace(hour=time.hour + 12)
+    place = ' '.join(l[pos:])
+    location = GEOLOCATOR.geocode(place, addressdetails=True)
+    timezone_str = TZWHERE_INST.tzNameAt(location.latitude, location.longitude)
+    timezone = pytz.timezone(timezone_str)
+    offset = str(timezone.utcoffset(date).total_seconds()/60/60).replace('.', ':')
+    datetime = Datetime(date.strftime('%Y/%m/%d'), time.strftime('%H:%M'), offset)
+    pos = GeoPos(location.latitude, location.longitude)
+    chart = Chart(datetime, pos)
+    response = ["%s, your chart is:" % (message.author.mention)]
+    for const in LIST_OBJECTS:
+        response += ['   %s: %s' % (const, str(chart.getObject(const).sign))]
     try:
-        date = parse(l[1])
-        time = parse(l[2])
-        pos = 3
-        if l[3].lower() == 'am':
-            pos += 1
-        if l[3].lower() == 'pm':
-            pos += 1
-            time.replace(hour=time.hour + 12)
-        place = ' '.join(l[pos:])
-        location = GEOLOCATOR.geocode(place, addressdetails=True)
-        timezone_str = TZWHERE_INST.tzNameAt(location.latitude, location.longitude)
-        timezone = pytz.timezone(timezone_str)
-        offset = str(timezone.utcoffset(date).total_seconds()/60/60).replace('.', ':')
-        datetime = Datetime(date.strftime('%Y/%m/%d'), time.strftime('%H:%M'), offset)
-        pos = GeoPos(location.latitude, location.longitude)
-        chart = Chart(datetime, pos)
-        response = ["%s, your chart is:" % (message.author.mention)]
-        for const in consts:
-            try:
-                response += ['   %s: %s' % (const, str(chart.getObject(const).sign))]
-            except:
-                pass
-        try:
-            url, img = get_chart_image(date, time, location, message)
-            response += [url]
-            response += [img]
-        except Exception as e:
-            logger.critical(e)
-            response += ["Couldn't generate your image :/"]
-        logger.info("Sending message: %s" % '\n'.join(response))
-        await send_text(client, message.channel, '\n'.join(response))
+        url, img = get_chart_image(date, time, location, message)
+        response += [url]
+        response += [img]
     except Exception as e:
-        raise e
-        await send_text(client, message.channel, "Usage: !chart dd/mm/yy hh/mm location")
+        logger.critical(e)
+        response += ["Couldn't generate your image :/"]
+    logger.info("Sending message: %s" % '\n'.join(response))
+    await send_text(client, message.channel, '\n'.join(response))
 
 async def send_text(client, channel, text):
     logger.info('Sending message: %s' % text)
@@ -160,6 +138,15 @@ async def cmd_help(message):
 Current commands:
     !sun [mm/dd/yy]
         Gives you your sun sign
+    !chart [mm/dd/yy] [hh:mm] [location in many words]
+        Gives you your full chart
 ''')
+
+@asyncio.coroutine
+def on_error(self, event_method, *args, **kwargs):
+    rollbar.report_exc_info()
+    logger.error('Ignoring exception in {}'.format(event_method))
+
 if __name__ == '__main__':
+    client.on_error = on_error
     client.run(secrets.CLIENT_TOKEN)
