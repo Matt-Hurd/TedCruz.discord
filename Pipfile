@@ -12,6 +12,8 @@ geopy = "*"
 "discord.py" = "*"
 dateutils = "*"
 tzwhere = "*"
+requests = "*"
+us = "*"
 
 
 [dev-packages]
