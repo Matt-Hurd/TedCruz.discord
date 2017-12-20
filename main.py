@@ -91,7 +91,10 @@ async def cmd_chart(message):
     chart = Chart(datetime, pos)
     response = ["%s, your chart is:" % (message.author.mention)]
     for const in LIST_OBJECTS:
-        response += ['   %s: %s' % (const, str(chart.getObject(const).sign))]
+        try:
+            response += ['   %s: %s' % (const, str(chart.getObject(const).sign))]
+        except:
+            pass
     try:
         url, img = get_chart_image(date, time, location, message)
         response += [url]
