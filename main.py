@@ -14,6 +14,7 @@ import us
 import re
 import logging
 import rollbar
+import random
 
 from dateutil.parser import parse
 
@@ -56,17 +57,16 @@ async def on_message(message):
         if len(l) < 2:
             await cmd_help(message)
         else:
-            await cmd_chart(message)
+            await cmd_roll(message)
 
 
 async def cmd_roll(message):
     l = message.content.split(' ')
     try:
         dice_size = int(l[1])
-        await send_text(client, message.channel, "%s, you roll a %d" % (message.author.mention, random.randint(1, dice_size))
-    except ValueError:
+        await send_text(client, message.channel, "%s, you roll a %d" % (message.author.mention, random.randint(1, dice_size)))
+    except Exception as e:
         await send_text(client, message.channel, "That's not a number!")
-
 
 
 async def cmd_sun(message):
