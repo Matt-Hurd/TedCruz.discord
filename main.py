@@ -52,6 +52,21 @@ async def on_message(message):
             await cmd_help(message)
         else:
             await cmd_chart(message)
+    if l[0] == '!roll':
+        if len(l) < 2:
+            await cmd_help(message)
+        else:
+            await cmd_chart(message)
+
+
+async def cmd_roll(message):
+    l = message.content.split(' ')
+    try:
+        dice_size = int(l[1])
+        await send_text(client, message.channel, "%s, you roll a %d" % (message.author.mention, random.randint(1, dice_size))
+    except ValueError:
+        await send_text(client, message.channel, "That's not a number!")
+
 
 
 async def cmd_sun(message):
@@ -143,6 +158,8 @@ Current commands:
         Gives you your sun sign
     !chart [mm/dd/yy] [hh:mm] [location in many words]
         Gives you your full chart
+    !roll [dice_size]
+        Roll a dice
 ''')
 
 @asyncio.coroutine
